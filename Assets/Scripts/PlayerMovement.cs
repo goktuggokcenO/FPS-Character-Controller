@@ -6,8 +6,14 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement")]
     private float moveSpeed;
     public float walkSpeed;
+    public float groundDrag;
     public movementState state;
     public Transform orientation;
+
+    [Header("Ground Check")]
+    public float playerHeight;
+    public LayerMask whatIsGround;
+    bool grounded;
 
     // Data inputs.
     Rigidbody rb;
@@ -29,6 +35,21 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        // Ground check.
+        grounded = Physics.Raycast(
+            transform.position,
+            Vector3.down,
+            playerHeight * 0.5f + 0.05f,
+            whatIsGround
+        );
+
+        // Handle drag.
+        if (grounded)
+            rb.linearDamping = groundDrag;
+        else
+            rb.linearDamping = 0;
+
+        // Get player input and handle the state.
         MyInput();
         StateHandler();
     }
@@ -50,14 +71,20 @@ public class PlayerMovement : MonoBehaviour
         // Calculate the movement direction.
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
 
-        // Move player.
-        rb.AddForce(moveDirection.normalized * moveSpeed * 100f, ForceMode.Force);
+        // Move player on ground.
+        if (grounded)
+        {
+            rb.AddForce(moveDirection.normalized * moveSpeed * 100f, ForceMode.Force);
+        }
     }
 
     private void StateHandler()
     {
         // Mode - Walking
-        state = movementState.walking;
-        moveSpeed = walkSpeed;
+        if (grounded)
+        {
+            state = movementState.walking;
+            moveSpeed = walkSpeed;
+        }
     }
 }

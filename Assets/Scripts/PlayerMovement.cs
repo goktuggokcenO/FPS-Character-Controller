@@ -197,7 +197,7 @@ public class PlayerMovement : MonoBehaviour
     private void ResetJump()
     {
         isReadyToJump = true;
-        exitingSlope = true;
+        exitingSlope = false;
     }
 
     private void SpeedControl()

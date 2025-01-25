@@ -27,6 +27,11 @@ public class PlayerMovement : MonoBehaviour
     public LayerMask whatIsGround;
     bool grounded;
 
+    [Header("Slope Handling")]
+    public float maxSlopeAngle;
+    private RaycastHit slopeHit;
+    private bool exitingSlope;
+
     [Header("Keybinds")]
     public KeyCode jumpKey = KeyCode.Space;
     public KeyCode sprintKey = KeyCode.LeftShift;
@@ -54,6 +59,7 @@ public class PlayerMovement : MonoBehaviour
 
         isReadyToJump = true;
         isCrouching = false;
+        exitingSlope = false;
 
         startScale = transform.localScale.y;
     }
@@ -64,7 +70,7 @@ public class PlayerMovement : MonoBehaviour
         grounded = Physics.Raycast(
             transform.position,
             Vector3.down,
-            playerHeight * 0.5f + 0.05f,
+            playerHeight * 0.5f + 0.2f,
             whatIsGround
         );
 
@@ -156,23 +162,34 @@ public class PlayerMovement : MonoBehaviour
         // Calculate the movement direction.
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
 
+        // Move player on slope.
+        if (OnSlope() && !exitingSlope)
+        {
+            rb.AddForce(GetSlopeMoveDirection() * moveSpeed * 1000f, ForceMode.Force);
+            if (rb.linearVelocity.y > 0)
+                rb.AddForce(Vector3.down * 1000f, ForceMode.Force);
+        }
         // Move player on ground.
-        if (grounded)
+        else if (grounded)
         {
             rb.AddForce(moveDirection.normalized * moveSpeed * 1000f, ForceMode.Force);
         }
         // Move player on air.
-        else
+        else if (!grounded)
         {
             rb.AddForce(
                 moveDirection.normalized * moveSpeed * 1000f * airMultiplier,
                 ForceMode.Force
             );
         }
+
+        // Turn gravity off on slope.
+        rb.useGravity = !OnSlope();
     }
 
     private void Jump()
     {
+        exitingSlope = true;
         rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
         rb.AddForce(transform.up * jumpForce * 100f, ForceMode.Impulse);
     }
@@ -180,21 +197,51 @@ public class PlayerMovement : MonoBehaviour
     private void ResetJump()
     {
         isReadyToJump = true;
+        exitingSlope = true;
     }
 
     private void SpeedControl()
     {
-        // Liimit the player speed.
-        Vector3 flatMoveVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-
-        if (flatMoveVelocity.magnitude > moveSpeed)
+        // Limit speed on slope.
+        if (OnSlope() && !exitingSlope)
         {
-            Vector3 limitedVeocity = flatMoveVelocity.normalized * moveSpeed;
-            rb.linearVelocity = new Vector3(
-                limitedVeocity.x,
-                rb.linearVelocity.y,
-                limitedVeocity.z
-            );
+            if (rb.linearVelocity.magnitude > moveSpeed)
+            {
+                rb.linearVelocity = rb.linearVelocity.normalized * moveSpeed;
+            }
         }
+        // Liimit the player speed on ground or air.
+        else
+        {
+            Vector3 flatMoveVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+
+            if (flatMoveVelocity.magnitude > moveSpeed)
+            {
+                Vector3 limitedVel = flatMoveVelocity.normalized * moveSpeed;
+                rb.linearVelocity = new Vector3(limitedVel.x, rb.linearVelocity.y, limitedVel.z);
+            }
+        }
+    }
+
+    private bool OnSlope()
+    {
+        if (
+            Physics.Raycast(
+                transform.position,
+                Vector3.down,
+                out slopeHit,
+                playerHeight * 0.5f + 0.4f
+            )
+        )
+        {
+            float angle = Vector3.Angle(Vector3.up, slopeHit.normal);
+            return angle < maxSlopeAngle && angle != 0;
+        }
+        return false;
+    }
+
+    private Vector3 GetSlopeMoveDirection()
+    {
+        return Vector3.ProjectOnPlane(moveDirection, slopeHit.normal).normalized;
     }
 }

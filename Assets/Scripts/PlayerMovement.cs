@@ -2,6 +2,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.VisualScripting;
 using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.EventSystems;
 using UnityEngine.UIElements;
 
@@ -68,6 +69,7 @@ public class PlayerMovement : MonoBehaviour
         // Get player input and handle the state.
         MyInput();
         StateHandler();
+        SpeedControl();
     }
 
     private void FixedUpdate()
@@ -113,13 +115,13 @@ public class PlayerMovement : MonoBehaviour
         // Move player on ground.
         if (grounded)
         {
-            rb.AddForce(moveDirection.normalized * moveSpeed * 100f, ForceMode.Force);
+            rb.AddForce(moveDirection.normalized * moveSpeed * 1000f, ForceMode.Force);
         }
         // Move player on air.
         else
         {
             rb.AddForce(
-                moveDirection.normalized * moveSpeed * 100f * airMultiplier,
+                moveDirection.normalized * moveSpeed * 1000f * airMultiplier,
                 ForceMode.Force
             );
         }
@@ -134,5 +136,21 @@ public class PlayerMovement : MonoBehaviour
     private void ResetJump()
     {
         isReadyToJump = true;
+    }
+
+    private void SpeedControl()
+    {
+        // Liimit the player speed.
+        Vector3 flatMoveVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+
+        if (flatMoveVelocity.magnitude > moveSpeed)
+        {
+            Vector3 limitedVeocity = flatMoveVelocity.normalized * moveSpeed;
+            rb.linearVelocity = new Vector3(
+                limitedVeocity.x,
+                rb.linearVelocity.y,
+                limitedVeocity.z
+            );
+        }
     }
 }

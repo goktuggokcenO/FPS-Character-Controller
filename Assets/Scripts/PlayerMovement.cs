@@ -16,6 +16,12 @@ public class PlayerMovement : MonoBehaviour
     public float airMultiplier;
     bool isReadyToJump;
 
+    [Header("Crouching")]
+    public float crouchSpeed;
+    public float crouchScale;
+    private float startScale;
+    private bool isCrouching;
+
     [Header("Ground Check")]
     public float playerHeight;
     public LayerMask whatIsGround;
@@ -24,6 +30,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Keybinds")]
     public KeyCode jumpKey = KeyCode.Space;
     public KeyCode sprintKey = KeyCode.LeftShift;
+    public KeyCode crouchKey = KeyCode.LeftControl;
 
     // Data inputs.
     Rigidbody rb;
@@ -36,6 +43,7 @@ public class PlayerMovement : MonoBehaviour
     {
         walking,
         sprinting,
+        crouching,
         air,
     }
 
@@ -45,6 +53,9 @@ public class PlayerMovement : MonoBehaviour
         rb.freezeRotation = true;
 
         isReadyToJump = true;
+        isCrouching = false;
+
+        startScale = transform.localScale.y;
     }
 
     private void Update()
@@ -81,18 +92,48 @@ public class PlayerMovement : MonoBehaviour
         verticalInput = Input.GetAxisRaw("Vertical");
 
         // Jump if pressed to jump key.
-        if (Input.GetKey(jumpKey) && isReadyToJump && grounded)
+        if (Input.GetKey(jumpKey) && isReadyToJump && grounded && !isCrouching)
         {
             isReadyToJump = false;
             Jump();
             Invoke(nameof(ResetJump), jumpCooldown);
         }
+
+        // Start crouch if presed to crouch key.
+        if (Input.GetKeyDown(crouchKey))
+        {
+            isCrouching = true;
+            transform.localScale = new Vector3(
+                transform.localScale.x,
+                crouchScale,
+                transform.localScale.z
+            );
+            rb.AddForce(Vector3.down * 100f, ForceMode.Impulse);
+        }
+
+        // Stop crouch if relased the crouch key.
+        if (Input.GetKeyUp(crouchKey))
+        {
+            isCrouching = false;
+            transform.localScale = new Vector3(
+                transform.localScale.x,
+                startScale,
+                transform.localScale.z
+            );
+            rb.AddForce(Vector3.up * 100f, ForceMode.Impulse);
+        }
     }
 
     private void StateHandler()
     {
+        // Mode - Crouching
+        if (Input.GetKey(crouchKey))
+        {
+            state = movementState.crouching;
+            moveSpeed = crouchSpeed;
+        }
         // Mode - Sprinting
-        if (grounded && Input.GetKey(sprintKey))
+        else if (grounded && Input.GetKey(sprintKey))
         {
             state = movementState.sprinting;
             moveSpeed = sprintSpeed;

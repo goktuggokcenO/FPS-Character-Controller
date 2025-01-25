@@ -1,6 +1,8 @@
+using System.Security.Cryptography;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.VisualScripting;
 using Unity.VisualScripting.Antlr3.Runtime.Tree;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.EventSystems;
@@ -11,6 +13,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement")]
     private float moveSpeed;
     public float walkSpeed;
+    public float sprintSpeed;
     public float groundDrag;
     public movementState state;
     public Transform orientation;
@@ -28,6 +31,7 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Keybinds")]
     public KeyCode jumpKey = KeyCode.Space;
+    public KeyCode sprintKey = KeyCode.LeftShift;
 
     // Data inputs.
     Rigidbody rb;
@@ -39,6 +43,7 @@ public class PlayerMovement : MonoBehaviour
     public enum movementState
     {
         walking,
+        sprinting,
         air,
     }
 
@@ -94,8 +99,14 @@ public class PlayerMovement : MonoBehaviour
 
     private void StateHandler()
     {
+        // Mode - Sprinting
+        if (grounded && Input.GetKey(sprintKey))
+        {
+            state = movementState.sprinting;
+            moveSpeed = sprintSpeed;
+        }
         // Mode - Walking
-        if (grounded)
+        else if (grounded)
         {
             state = movementState.walking;
             moveSpeed = walkSpeed;

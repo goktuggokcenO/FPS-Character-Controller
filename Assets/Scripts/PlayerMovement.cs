@@ -1,5 +1,9 @@
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.VisualScripting;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UIElements;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -10,10 +14,19 @@ public class PlayerMovement : MonoBehaviour
     public movementState state;
     public Transform orientation;
 
+    [Header("Jumping")]
+    public float jumpForce;
+    public float jumpCooldown;
+    public float airMultiplier;
+    bool isReadyToJump;
+
     [Header("Ground Check")]
     public float playerHeight;
     public LayerMask whatIsGround;
     bool grounded;
+
+    [Header("Keybinds")]
+    public KeyCode jumpKey = KeyCode.Space;
 
     // Data inputs.
     Rigidbody rb;
@@ -25,12 +38,15 @@ public class PlayerMovement : MonoBehaviour
     public enum movementState
     {
         walking,
+        air,
     }
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+
+        isReadyToJump = true;
     }
 
     private void Update()
@@ -64,6 +80,29 @@ public class PlayerMovement : MonoBehaviour
         // Get player inputs.
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
+
+        // Jump if pressed to jump key.
+        if (Input.GetKey(jumpKey) && isReadyToJump && grounded)
+        {
+            isReadyToJump = false;
+            Jump();
+            Invoke(nameof(ResetJump), jumpCooldown);
+        }
+    }
+
+    private void StateHandler()
+    {
+        // Mode - Walking
+        if (grounded)
+        {
+            state = movementState.walking;
+            moveSpeed = walkSpeed;
+        }
+        // Mode - Air
+        else
+        {
+            state = movementState.air;
+        }
     }
 
     private void MovePlayer()
@@ -76,15 +115,24 @@ public class PlayerMovement : MonoBehaviour
         {
             rb.AddForce(moveDirection.normalized * moveSpeed * 100f, ForceMode.Force);
         }
+        // Move player on air.
+        else
+        {
+            rb.AddForce(
+                moveDirection.normalized * moveSpeed * 100f * airMultiplier,
+                ForceMode.Force
+            );
+        }
     }
 
-    private void StateHandler()
+    private void Jump()
     {
-        // Mode - Walking
-        if (grounded)
-        {
-            state = movementState.walking;
-            moveSpeed = walkSpeed;
-        }
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        rb.AddForce(transform.up * jumpForce * 100f, ForceMode.Impulse);
+    }
+
+    private void ResetJump()
+    {
+        isReadyToJump = true;
     }
 }
